@@ -315,11 +315,17 @@ func parseAvailableEnv() map[string]string {
 }
 
 func main() {
-	// Build-action generation keeps a large live heap.  Start collection before
+	// Build-action generation keeps a large live heap. Start collection before
 	// the default 100% heap-growth target to avoid an avoidable RSS spike on
-	// memory-constrained workstations.  An explicitly forwarded GOGC still wins.
+	// memory-constrained workstations. An explicitly forwarded GOGC still wins.
 	if os.Getenv("GOGC") == "" {
-		debug.SetGCPercent(50)
+		debug.SetGCPercent(25)
+	}
+
+	// Cap Soong's heap at 40 GiB to prevent OOM on memory-constrained CI
+	// runners. An explicitly forwarded GOMEMLIMIT still wins.
+	if os.Getenv("GOMEMLIMIT") == "" {
+		debug.SetMemoryLimit(40 * 1024 * 1024 * 1024)
 	}
 
 	flag.Parse()
@@ -330,6 +336,7 @@ func main() {
 		// Disable collection of memory profiles if we won't save one to disk.
 		runtime.MemProfileRate = 0
 	}
+
 	soongStartTime := time.Now()
 
 	shared.ReexecWithDelveMaybe(delveListen, delvePath)
